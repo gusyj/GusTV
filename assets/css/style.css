@@ -43,7 +43,7 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: 200px 1fr 280px;
+  grid-template-columns: 1fr 320px;
   gap: 16px;
   padding: 16px 20px;
 }
@@ -54,16 +54,16 @@ body {
   }
 }
 
-.sidebar, .channel-pane {
+.channel-pane {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
-  max-height: 70vh;
+  max-height: 80vh;
   overflow-y: auto;
 }
 
-.sidebar h2, .channel-pane h2 {
+.channel-pane h2 {
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -71,16 +71,7 @@ body {
   margin: 0 0 8px;
 }
 
-.sidebar-subheading {
-  margin-top: 18px;
-}
-
-#country-list {
-  max-height: 240px;
-  overflow-y: auto;
-}
-
-#category-list, #channel-list {
+#channel-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -89,27 +80,20 @@ body {
   gap: 4px;
 }
 
-#category-list li, #channel-list li {
+#channel-list li {
   padding: 8px 10px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
 }
 
-#category-list li:hover, #channel-list li:hover {
+#channel-list li:hover {
   background: rgba(91, 140, 255, 0.12);
 }
 
-#category-list li.active, #channel-list li.active {
+#channel-list li.active {
   background: var(--accent);
   color: #0b1020;
-}
-
-#channel-list li.more-note {
-  color: var(--accent);
-  font-style: italic;
-  text-align: center;
-  font-weight: 600;
 }
 
 .player-pane {
@@ -127,61 +111,10 @@ body {
   background: #000;
 }
 
-.player-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-}
-
-#record-btn {
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #1f2430;
-  color: var(--text);
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-#record-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-#record-btn.recording {
-  background: #7a1f2b;
-  border-color: #b23a4a;
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.record-timer {
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
 .now-playing {
   margin: 0;
   padding: 10px 14px;
   font-size: 0.9rem;
   color: var(--muted);
   background: var(--panel);
-}
-
-.footer {
-  padding: 12px 20px;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.footer a {
-  color: var(--accent);
 }
