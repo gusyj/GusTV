@@ -18,12 +18,6 @@ const GITHUB_REPO = "GusTV";
 const GITHUB_BRANCH = "master";
 const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`;
 
-// The full catalog can run into the thousands of channels — cap how many
-// list items get rendered into the DOM at once for one filter combination,
-// so the browser stays responsive. Narrowing by country/category/search
-// naturally brings the count below this.
-const MAX_RENDERED_CHANNELS = 300;
-
 (async function () {
   const video = document.getElementById("player");
   const nowPlaying = document.getElementById("now-playing");
@@ -122,6 +116,7 @@ const MAX_RENDERED_CHANNELS = 300;
       const res = await fetch("channels.json");
       channels = await res.json();
     }
+    channels.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
     nowPlaying.textContent = `Loaded ${channels.length.toLocaleString()} channels. Select one to start watching.`;
   }
 
@@ -179,46 +174,29 @@ const MAX_RENDERED_CHANNELS = 300;
     });
   }
 
-  // Current filtered result set + how much of it is rendered so far, so
-  // "Load more" can append without recomputing the filter each click.
-  let currentMatches = [];
-  let renderedCount = 0;
-
+  // channels is kept globally sorted alphabetically (see loadChannels), so
+  // every filtered view below is already in A-Z order — no pagination, the
+  // whole matching set renders every time.
   function renderChannels(filterText = "") {
     const query = filterText.trim().toLowerCase();
-    channelList.innerHTML = "";
 
-    currentMatches = channels
+    const matches = channels
       .filter((c) => activeCountry === "All" || c.country === activeCountry)
       .filter((c) => activeGroup === "All" || c.group === activeGroup)
       .filter((c) => !query || c.name.toLowerCase().includes(query));
 
-    renderedCount = 0;
-    appendChannelBatch();
-  }
-
-  function appendChannelBatch() {
-    // Remove any existing "load more" row before appending a fresh batch.
-    const existingMore = channelList.querySelector(".more-note");
-    if (existingMore) existingMore.remove();
-
-    const nextBatch = currentMatches.slice(renderedCount, renderedCount + MAX_RENDERED_CHANNELS);
-    nextBatch.forEach((channel) => {
+    // Build off-DOM, then attach once — much faster than appendChild-ing
+    // one at a time when the list can run into the thousands.
+    const fragment = document.createDocumentFragment();
+    matches.forEach((channel) => {
       const li = document.createElement("li");
       li.textContent = `${flagEmoji(channel.country_code)}  ${channel.name}`;
       li.title = channel.note || "";
       li.addEventListener("click", () => playChannel(channel, li));
-      channelList.appendChild(li);
+      fragment.appendChild(li);
     });
-    renderedCount += nextBatch.length;
-
-    if (renderedCount < currentMatches.length) {
-      const li = document.createElement("li");
-      li.className = "more-note";
-      li.textContent = `Load more (${currentMatches.length - renderedCount} remaining)`;
-      li.addEventListener("click", appendChannelBatch);
-      channelList.appendChild(li);
-    }
+    channelList.innerHTML = "";
+    channelList.appendChild(fragment);
   }
 
   function playChannel(channel, li) {
