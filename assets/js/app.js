@@ -1,22 +1,28 @@
 /**
  * GusTV front-end
- * Pulls channels.json live from the GitHub repo (so this app can be hosted
- * anywhere — Netlify, Vercel, etc. — while the GitHub repo stays the single
- * source of truth for the channel list), renders country + category
- * filters and a channel list, plays the selected stream with hls.js
- * (falling back to native HLS on Safari/iOS), and can record the currently
- * playing stream to a local file via MediaRecorder.
+ * Pulls the real, full channel catalog live from index.m3u in the GitHub
+ * repo (so this app can be hosted anywhere — Netlify, Vercel, etc. — while
+ * GitHub stays the single source of truth), parses it into channel
+ * objects with a derived country, renders country + category filters and
+ * a channel list, plays the selected stream with hls.js (falling back to
+ * native HLS on Safari/iOS), and can record the currently playing stream
+ * to a local file via MediaRecorder.
  */
 
 // --- Where the channel data lives ---
-// Update these two values to match your GitHub username/repo/branch.
-// raw.githubusercontent.com serves the file with CORS enabled and no
-// caching games, so a fetch from any host (Netlify, Vercel, wherever)
-// works without extra configuration.
+// Update these to match your GitHub username/repo/branch if you fork this.
+// GitHub Pages serves files with CORS enabled, so a fetch from any host
+// (Netlify, Vercel, wherever) works without extra configuration.
 const GITHUB_USER = "gusyj";
 const GITHUB_REPO = "GusTV";
-const GITHUB_BRANCH = "main";
-const CHANNELS_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/channels.json`;
+const GITHUB_BRANCH = "master";
+const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`;
+
+// The full catalog can run into the thousands of channels — cap how many
+// list items get rendered into the DOM at once for one filter combination,
+// so the browser stays responsive. Narrowing by country/category/search
+// naturally brings the count below this.
+const MAX_RENDERED_CHANNELS = 300;
 
 (async function () {
   const video = document.getElementById("player");
@@ -40,18 +46,77 @@ const CHANNELS_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_
   let recordStartTime = null;
   let recordTimerInterval = null;
 
-  async function loadChannels() {
+  const countryNamer = (function () {
     try {
-      const res = await fetch(CHANNELS_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`GitHub fetch failed: HTTP ${res.status}`);
-      channels = await res.json();
+      const dn = new Intl.DisplayNames(["en"], { type: "region" });
+      return (code) => dn.of(code) || code;
+    } catch {
+      return (code) => code;
+    }
+  })();
+
+  // Parses standard #EXTM3U / #EXTINF playlist text into channel objects.
+  // iptv-org channel ids follow the convention "ChannelName.countrycode"
+  // (e.g. "CNNInternational.us"), which is what we use to derive country —
+  // there's no separate per-channel "country" field in the raw M3U itself.
+  function parseM3U(text) {
+    const lines = text.split(/\r?\n/);
+    const result = [];
+    let pending = null;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      if (line.startsWith("#EXTINF")) {
+        const attrs = {};
+        const attrRe = /([\w-]+)="([^"]*)"/g;
+        let m;
+        while ((m = attrRe.exec(line))) attrs[m[1]] = m[2];
+
+        const nameMatch = line.match(/,(.*)$/);
+        const name = nameMatch ? nameMatch[1].trim() : attrs["tvg-id"] || "Unknown channel";
+
+        const tvgId = attrs["tvg-id"] || "";
+        const idParts = tvgId.split(".");
+        const lastPart = idParts.length > 1 ? idParts[idParts.length - 1] : "";
+        const isCountryCode = /^[a-z]{2}$/i.test(lastPart);
+        const countryCode = isCountryCode ? lastPart.toUpperCase() : "";
+        const country = countryCode ? countryNamer(countryCode) : "International / Other";
+
+        pending = {
+          id: tvgId || name,
+          name,
+          group: attrs["group-title"] || "Uncategorized",
+          logo: attrs["tvg-logo"] || "",
+          country,
+          country_code: countryCode,
+        };
+      } else if (!line.startsWith("#") && pending) {
+        pending.url = line;
+        result.push(pending);
+        pending = null;
+      }
+    }
+    return result;
+  }
+
+  async function loadChannels() {
+    nowPlaying.textContent = "Loading global channel list…";
+    try {
+      const res = await fetch(PLAYLIST_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(`GitHub Pages fetch failed: HTTP ${res.status}`);
+      const text = await res.text();
+      channels = parseM3U(text);
+      if (!channels.length) throw new Error("Parsed 0 channels from index.m3u");
     } catch (err) {
       console.warn("Falling back to bundled channels.json —", err.message);
-      // Fallback so the app still works if GitHub is unreachable, the repo
-      // is renamed, or you're testing locally before it's pushed.
+      // Fallback so the app still works if GitHub Pages is unreachable,
+      // the repo/branch was renamed, or you're testing locally.
       const res = await fetch("channels.json");
       channels = await res.json();
     }
+    nowPlaying.textContent = `Loaded ${channels.length.toLocaleString()} channels. Select one to start watching.`;
   }
 
   function uniqueSorted(values) {
@@ -112,17 +177,25 @@ const CHANNELS_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_
     const query = filterText.trim().toLowerCase();
     channelList.innerHTML = "";
 
-    channels
+    const matches = channels
       .filter((c) => activeCountry === "All" || c.country === activeCountry)
       .filter((c) => activeGroup === "All" || c.group === activeGroup)
-      .filter((c) => !query || c.name.toLowerCase().includes(query))
-      .forEach((channel) => {
-        const li = document.createElement("li");
-        li.textContent = `${flagEmoji(channel.country_code)}  ${channel.name}`;
-        li.title = channel.note || "";
-        li.addEventListener("click", () => playChannel(channel, li));
-        channelList.appendChild(li);
-      });
+      .filter((c) => !query || c.name.toLowerCase().includes(query));
+
+    matches.slice(0, MAX_RENDERED_CHANNELS).forEach((channel) => {
+      const li = document.createElement("li");
+      li.textContent = `${flagEmoji(channel.country_code)}  ${channel.name}`;
+      li.title = channel.note || "";
+      li.addEventListener("click", () => playChannel(channel, li));
+      channelList.appendChild(li);
+    });
+
+    if (matches.length > MAX_RENDERED_CHANNELS) {
+      const li = document.createElement("li");
+      li.className = "more-note";
+      li.textContent = `+${matches.length - MAX_RENDERED_CHANNELS} more — narrow by country, category, or search to see them.`;
+      channelList.appendChild(li);
+    }
   }
 
   function playChannel(channel, li) {

@@ -105,6 +105,16 @@ body {
   color: #0b1020;
 }
 
+#channel-list li.more-note {
+  color: var(--muted);
+  font-style: italic;
+  cursor: default;
+}
+
+#channel-list li.more-note:hover {
+  background: none;
+}
+
 .player-pane {
   background: #000;
   border-radius: 10px;
