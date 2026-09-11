@@ -55,6 +55,20 @@ const MAX_AUTO_SKIPS = 25;
     return result;
   }
 
+  // blocklist.json is produced by checker.html (run manually in a browser —
+  // see that file) and lists stream URLs confirmed dead. Missing/unreadable
+  // is fine; it just means nothing gets filtered.
+  async function loadBlocklist() {
+    try {
+      const res = await fetch("blocklist.json", { cache: "no-store" });
+      if (!res.ok) return new Set();
+      const data = await res.json();
+      return new Set(data.dead_urls || []);
+    } catch {
+      return new Set();
+    }
+  }
+
   async function loadChannels() {
     nowPlaying.textContent = "Loading channel list…";
     try {
@@ -69,8 +83,16 @@ const MAX_AUTO_SKIPS = 25;
       const fallback = await res.json();
       channels = fallback.map((c) => ({ name: c.name, url: c.url }));
     }
+
+    const blocked = await loadBlocklist();
+    const beforeCount = channels.length;
+    if (blocked.size) {
+      channels = channels.filter((c) => !blocked.has(c.url));
+    }
+
     channels.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-    nowPlaying.textContent = `Loaded ${channels.length.toLocaleString()} channels. Select one to start watching.`;
+    const filteredNote = blocked.size ? ` (${(beforeCount - channels.length).toLocaleString()} known-dead filtered out)` : "";
+    nowPlaying.textContent = `Loaded ${channels.length.toLocaleString()} channels${filteredNote}. Select one to start watching.`;
     renderChannels();
   }
 
@@ -151,7 +173,7 @@ const MAX_AUTO_SKIPS = 25;
       setTimeout(hideProgress, 600);
       nowPlaying.textContent = `Now playing: ${channel.name}`;
     };
-    const stallTimer = setTimeout(() => markOffline("timed out"), 12000);
+    const stallTimer = setTimeout(() => markOffline("timed out"), 8000);
 
     if (window.Hls && window.Hls.isSupported()) {
       hls = new window.Hls();
