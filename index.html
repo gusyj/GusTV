@@ -10,7 +10,10 @@
 <body>
   <header class="topbar">
     <h1>GusTV</h1>
-    <input id="search" type="search" placeholder="Search channels…" />
+    <form id="search-form" class="search-form" role="search">
+      <input id="search" type="search" placeholder="Search channels…" enterkeyhint="search" />
+      <button id="search-btn" type="submit" aria-label="Search">🔍</button>
+    </form>
   </header>
 
   <main class="layout">

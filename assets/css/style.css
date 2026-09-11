@@ -21,9 +21,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
-  gap: 16px;
+  gap: 12px;
 }
 
 .topbar h1 {
@@ -31,14 +32,39 @@ body {
   margin: 0;
 }
 
-#search {
-  flex: 0 1 320px;
+.search-form {
+  display: flex;
+  flex: 1 1 320px;
   max-width: 100%;
-  padding: 8px 12px;
+  gap: 8px;
+}
+
+#search {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 1rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
+}
+
+#search-btn {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  font-size: 1rem;
+  line-height: 1;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #1f2430;
+  color: var(--text);
+  cursor: pointer;
+}
+
+#search-btn:hover {
+  background: #2a3040;
 }
 
 .layout {
@@ -51,6 +77,35 @@ body {
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  .topbar h1 {
+    flex: 1 1 auto;
+  }
+
+  .search-form {
+    flex: 1 1 100%;
+  }
+
+  .channel-pane {
+    max-height: 50vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar h1 {
+    font-size: 1.1rem;
+  }
+
+  #search,
+  #search-btn {
+    padding: 10px;
   }
 }
 
@@ -81,10 +136,10 @@ body {
 }
 
 #channel-list li {
-  padding: 8px 10px;
+  padding: 12px 10px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 #channel-list li:hover {
@@ -131,19 +186,27 @@ body {
 
 .player-controls {
   display: flex;
+  flex-wrap: wrap;
   padding: 10px 14px;
   background: var(--panel);
   border-top: 1px solid var(--border);
 }
 
 #next-btn {
-  padding: 8px 14px;
+  padding: 10px 16px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #1f2430;
   color: var(--text);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+@media (min-width: 480px) {
+  #next-btn {
+    width: auto;
+  }
 }
 
 #next-btn:hover {

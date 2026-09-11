@@ -24,6 +24,7 @@ const MAX_AUTO_SKIPS = 25;
   const nowPlaying = document.getElementById("now-playing");
   const channelList = document.getElementById("channel-list");
   const searchInput = document.getElementById("search");
+  const searchForm = document.getElementById("search-form");
   const nextBtn = document.getElementById("next-btn");
   const progressWrap = document.getElementById("load-progress");
   const progressBar = document.getElementById("load-progress-bar");
@@ -173,7 +174,7 @@ const MAX_AUTO_SKIPS = 25;
       setTimeout(hideProgress, 600);
       nowPlaying.textContent = `Now playing: ${channel.name}`;
     };
-    const stallTimer = setTimeout(() => markOffline("timed out"), 8000);
+    const stallTimer = setTimeout(() => markOffline("timed out"), 20000);
 
     if (window.Hls && window.Hls.isSupported()) {
       hls = new window.Hls();
@@ -188,11 +189,29 @@ const MAX_AUTO_SKIPS = 25;
         video.play();
         markPlaying();
       });
+      let triedRecovery = false;
       hls.on(window.Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          clearTimeout(stallTimer);
-          markOffline(data.details || "stream error");
+        if (!data.fatal) return;
+
+        // hls.js can report a "fatal" network/media error on the very first
+        // attempt even when the stream is actually fine (a slow first
+        // response, a single dropped segment). Give it one recovery attempt
+        // before writing the channel off, per hls.js's own recommended
+        // pattern — this is likely why channels were getting skipped before
+        // they'd had a real chance to load.
+        if (!triedRecovery && data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+          triedRecovery = true;
+          hls.startLoad();
+          return;
         }
+        if (!triedRecovery && data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+          triedRecovery = true;
+          hls.recoverMediaError();
+          return;
+        }
+
+        clearTimeout(stallTimer);
+        markOffline(data.details || "stream error");
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = channel.url;
@@ -222,6 +241,15 @@ const MAX_AUTO_SKIPS = 25;
   });
 
   searchInput.addEventListener("input", (e) => renderChannels(e.target.value));
+
+  // The search button/form submit does the same live filter — it mainly
+  // exists so a tap on mobile has an explicit target and dismisses the
+  // on-screen keyboard, since the list already filters as you type.
+  searchForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    renderChannels(searchInput.value);
+    searchInput.blur();
+  });
 
   await loadChannels();
 })();
