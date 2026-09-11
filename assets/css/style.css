@@ -111,6 +111,45 @@ body {
   background: #000;
 }
 
+.load-progress {
+  height: 20px;
+  background: #000;
+  border-top: 1px solid var(--border);
+}
+
+.load-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  color: #0b1020;
+  font-size: 0.7rem;
+  line-height: 20px;
+  text-align: center;
+  white-space: nowrap;
+  transition: width 0.25s ease;
+}
+
+.player-controls {
+  display: flex;
+  padding: 10px 14px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+#next-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #1f2430;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+#next-btn:hover {
+  background: #2a3040;
+}
+
 .now-playing {
   margin: 0;
   padding: 10px 14px;

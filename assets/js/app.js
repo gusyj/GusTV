@@ -3,6 +3,11 @@
  * Fetches the real channel catalog from GitHub Pages, parses it, and shows
  * one flat alphabetical list with search. No countries, no categories, no
  * recording — just pick a channel and watch.
+ *
+ * Extras: a Next-channel button, automatic skip-to-next when a channel
+ * fails to load, and a loading-progress indicator tied to real HLS load
+ * milestones (there's no true byte-progress for a live stream, so this
+ * marks concrete stages instead of faking a smooth animation).
  */
 
 const GITHUB_USER = "gusyj";
@@ -10,14 +15,24 @@ const GITHUB_REPO = "GusTV";
 const GITHUB_BRANCH = "master";
 const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`;
 
+// Auto-skip stops after this many consecutive dead channels, so a fully
+// dead catalog subset can't loop forever.
+const MAX_AUTO_SKIPS = 25;
+
 (async function () {
   const video = document.getElementById("player");
   const nowPlaying = document.getElementById("now-playing");
   const channelList = document.getElementById("channel-list");
   const searchInput = document.getElementById("search");
+  const nextBtn = document.getElementById("next-btn");
+  const progressWrap = document.getElementById("load-progress");
+  const progressBar = document.getElementById("load-progress-bar");
 
   let channels = [];
+  let currentList = []; // whatever's currently filtered/rendered
+  let currentIndex = -1; // position of the playing channel within currentList
   let hls = null;
+  let autoSkipStreak = 0;
 
   // Parses standard #EXTM3U / #EXTINF playlist text into {name, url} pairs.
   function parseM3U(text) {
@@ -61,22 +76,51 @@ const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`
 
   function renderChannels(filterText = "") {
     const query = filterText.trim().toLowerCase();
-    const matches = channels.filter((c) => !query || c.name.toLowerCase().includes(query));
+    currentList = channels.filter((c) => !query || c.name.toLowerCase().includes(query));
+    currentIndex = -1;
 
     const fragment = document.createDocumentFragment();
-    matches.forEach((channel) => {
+    currentList.forEach((channel, index) => {
       const li = document.createElement("li");
       li.textContent = channel.name;
-      li.addEventListener("click", () => playChannel(channel, li));
+      li.addEventListener("click", () => playChannelAt(index, { auto: false }));
       fragment.appendChild(li);
     });
     channelList.innerHTML = "";
     channelList.appendChild(fragment);
   }
 
-  function playChannel(channel, li) {
-    document.querySelectorAll("#channel-list li").forEach((el) => el.classList.remove("active"));
-    li.classList.add("active");
+  function setActiveListItem(index) {
+    const items = channelList.querySelectorAll("li");
+    items.forEach((el) => el.classList.remove("active"));
+    if (items[index]) {
+      items[index].classList.add("active");
+      items[index].scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function showProgress(pct, label) {
+    progressWrap.hidden = false;
+    progressBar.style.width = `${pct}%`;
+    progressBar.textContent = label ? `${label} (${pct}%)` : `${pct}%`;
+  }
+
+  function hideProgress() {
+    progressWrap.hidden = true;
+    progressBar.style.width = "0%";
+    progressBar.textContent = "";
+  }
+
+  // Plays the channel at `index` in currentList. `auto: true` means this
+  // call came from auto-skip-on-failure rather than a direct user click,
+  // which is what lets failures chain into the next attempt automatically.
+  function playChannelAt(index, { auto = false } = {}) {
+    if (!currentList.length) return;
+    // Wrap around so Next past the end loops back to the start.
+    const wrapped = ((index % currentList.length) + currentList.length) % currentList.length;
+    const channel = currentList[wrapped];
+    currentIndex = wrapped;
+    setActiveListItem(wrapped);
 
     if (hls) {
       hls.destroy();
@@ -84,13 +128,27 @@ const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`
     }
 
     let settled = false;
+    showProgress(5, "Connecting");
+
     const markOffline = (reason) => {
       if (settled) return;
       settled = true;
-      nowPlaying.textContent = `"${channel.name}" looks offline right now (${reason}) — try another channel.`;
+      hideProgress();
+      nowPlaying.textContent = `"${channel.name}" looks offline right now (${reason}) — skipping to the next channel…`;
+
+      autoSkipStreak += 1;
+      if (autoSkipStreak >= MAX_AUTO_SKIPS || autoSkipStreak >= currentList.length) {
+        nowPlaying.textContent = `Tried ${autoSkipStreak} channels in a row with no luck — pick one manually to keep going.`;
+        autoSkipStreak = 0;
+        return;
+      }
+      setTimeout(() => playChannelAt(currentIndex + 1, { auto: true }), 600);
     };
     const markPlaying = () => {
       settled = true;
+      autoSkipStreak = 0;
+      showProgress(100, "Playing");
+      setTimeout(hideProgress, 600);
       nowPlaying.textContent = `Now playing: ${channel.name}`;
     };
     const stallTimer = setTimeout(() => markOffline("timed out"), 12000);
@@ -99,6 +157,10 @@ const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`
       hls = new window.Hls();
       hls.loadSource(channel.url);
       hls.attachMedia(video);
+      hls.on(window.Hls.Events.MANIFEST_LOADING, () => showProgress(20, "Loading channel"));
+      hls.on(window.Hls.Events.MANIFEST_LOADED, () => showProgress(45, "Reading stream info"));
+      hls.on(window.Hls.Events.LEVEL_LOADED, () => showProgress(65, "Buffering"));
+      hls.on(window.Hls.Events.FRAG_LOADED, () => showProgress(85, "Buffering"));
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
         clearTimeout(stallTimer);
         video.play();
@@ -112,7 +174,11 @@ const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = channel.url;
+      showProgress(40, "Loading channel");
       video.addEventListener("loadedmetadata", () => {
+        showProgress(85, "Buffering");
+      }, { once: true });
+      video.addEventListener("playing", () => {
         clearTimeout(stallTimer);
         markPlaying();
       }, { once: true });
@@ -123,9 +189,15 @@ const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`
       video.play();
     } else {
       clearTimeout(stallTimer);
+      hideProgress();
       nowPlaying.textContent = `Your browser can't play HLS streams directly. Try VLC with: ${channel.url}`;
     }
   }
+
+  nextBtn.addEventListener("click", () => {
+    autoSkipStreak = 0; // manual click resets the auto-skip budget
+    playChannelAt(currentIndex + 1, { auto: false });
+  });
 
   searchInput.addEventListener("input", (e) => renderChannels(e.target.value));
 
