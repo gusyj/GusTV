@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Placeholder XMLTV electronic program guide.
+
+  Real EPG data typically comes from a provider's own XMLTV feed or a
+  scraper (iptv-org uses github.com/iptv-org/epg for this). Wire that up
+  in scripts/ once you've picked channel sources, and have it write its
+  output here. Keeping a placeholder for now so the file path referenced
+  by tvg-id attributes in channels.json already exists.
+-->
+<tv generator-info-name="GusTV">
+  <channel id="demo.bipbop">
+    <display-name>GusTV Demo Channel (BipBop)</display-name>
+  </channel>
+  <channel id="demo.mux">
+    <display-name>GusTV Demo Channel (Mux Test)</display-name>
+  </channel>
+</tv>

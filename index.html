@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GusTV</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>GusTV</h1>
+    <input id="search" type="search" placeholder="Search channels…" />
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <h2>Categories</h2>
+      <ul id="category-list"></ul>
+    </aside>
+
+    <section class="player-pane">
+      <video id="player" controls playsinline></video>
+      <p id="now-playing" class="now-playing">Select a channel to start watching.</p>
+    </section>
+
+    <section class="channel-pane">
+      <h2>Channels</h2>
+      <ul id="channel-list"></ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>
+      Playlist: <a id="playlist-link" href="index.m3u">index.m3u</a> ·
+      <a href="https://github.com/" id="repo-link">Source on GitHub</a>
+    </p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
