@@ -2,8 +2,9 @@
 """
 generate_m3u.py
 
-Builds index.m3u (master playlist) and per-category playlists under
-playlists/categories/ from channels.json.
+Builds index.m3u (master playlist) and per-category / per-country
+playlists under playlists/categories/ and playlists/countries/ from
+channels.json.
 
 Usage:
     python3 scripts/generate_m3u.py
@@ -21,6 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHANNELS_FILE = os.path.join(ROOT, "channels.json")
 INDEX_FILE = os.path.join(ROOT, "index.m3u")
 CATEGORIES_DIR = os.path.join(ROOT, "playlists", "categories")
+COUNTRIES_DIR = os.path.join(ROOT, "playlists", "countries")
 
 
 def slugify(name: str) -> str:
@@ -30,11 +32,14 @@ def slugify(name: str) -> str:
 def m3u_entry(channel: dict) -> str:
     logo = channel.get("logo", "")
     group = channel.get("group", "Uncategorized")
+    country = channel.get("country", "Unassigned")
+    country_code = channel.get("country_code", "")
     epg_id = channel.get("epg_id", channel["id"])
     name = channel["name"]
     url = channel["url"]
     return (
-        f'#EXTINF:-1 tvg-id="{epg_id}" tvg-logo="{logo}" group-title="{group}",{name}\n'
+        f'#EXTINF:-1 tvg-id="{epg_id}" tvg-logo="{logo}" tvg-country="{country_code}" '
+        f'group-title="{group}",{name} [{country}]\n'
         f"{url}\n"
     )
 
@@ -64,6 +69,20 @@ def main():
             for ch in group_channels:
                 f.write(m3u_entry(ch))
         print(f"Wrote {path} ({len(group_channels)} channels)")
+
+    # Per-country playlists
+    os.makedirs(COUNTRIES_DIR, exist_ok=True)
+    by_country = defaultdict(list)
+    for ch in channels:
+        by_country[ch.get("country", "Unassigned")].append(ch)
+
+    for country, country_channels in by_country.items():
+        path = os.path.join(COUNTRIES_DIR, f"{slugify(country)}.m3u")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("#EXTM3U\n")
+            for ch in country_channels:
+                f.write(m3u_entry(ch))
+        print(f"Wrote {path} ({len(country_channels)} channels)")
 
 
 if __name__ == "__main__":

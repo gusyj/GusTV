@@ -71,6 +71,15 @@ body {
   margin: 0 0 8px;
 }
 
+.sidebar-subheading {
+  margin-top: 18px;
+}
+
+#country-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
 #category-list, #channel-list {
   list-style: none;
   margin: 0;
@@ -109,6 +118,47 @@ body {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+#record-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #1f2430;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+#record-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#record-btn.recording {
+  background: #7a1f2b;
+  border-color: #b23a4a;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.record-timer {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .now-playing {

@@ -1,0 +1,30 @@
+name: Validate playlists
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Daily at 09:00 UTC
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate playlists from channels.json
+        run: python3 scripts/generate_m3u.py
+
+      - name: Fail if generated playlists drifted from committed ones
+        run: |
+          git diff --exit-code index.m3u playlists/ || \
+          (echo "index.m3u / playlists/ are out of date — run scripts/generate_m3u.py and commit the result." && exit 1)
+
+      - name: Check stream health
+        run: python3 scripts/check_streams.py

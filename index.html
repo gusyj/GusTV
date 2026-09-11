@@ -14,12 +14,18 @@
 
   <main class="layout">
     <aside class="sidebar">
-      <h2>Categories</h2>
+      <h2>Countries</h2>
+      <ul id="country-list"></ul>
+      <h2 class="sidebar-subheading">Categories</h2>
       <ul id="category-list"></ul>
     </aside>
 
     <section class="player-pane">
       <video id="player" controls playsinline></video>
+      <div class="player-controls">
+        <button id="record-btn" disabled>⏺ Start recording</button>
+        <span id="record-timer" class="record-timer" hidden>00:00</span>
+      </div>
       <p id="now-playing" class="now-playing">Select a channel to start watching.</p>
     </section>
 
@@ -32,7 +38,7 @@
   <footer class="footer">
     <p>
       Playlist: <a id="playlist-link" href="index.m3u">index.m3u</a> ·
-      <a href="https://github.com/" id="repo-link">Source on GitHub</a>
+      <a href="https://github.com/gusyj/GusTV" id="repo-link">Source on GitHub</a>
     </p>
   </footer>
 
