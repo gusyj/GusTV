@@ -106,13 +106,10 @@ body {
 }
 
 #channel-list li.more-note {
-  color: var(--muted);
+  color: var(--accent);
   font-style: italic;
-  cursor: default;
-}
-
-#channel-list li.more-note:hover {
-  background: none;
+  text-align: center;
+  font-weight: 600;
 }
 
 .player-pane {

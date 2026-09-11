@@ -56,9 +56,14 @@ const MAX_RENDERED_CHANNELS = 300;
   })();
 
   // Parses standard #EXTM3U / #EXTINF playlist text into channel objects.
-  // iptv-org channel ids follow the convention "ChannelName.countrycode"
-  // (e.g. "CNNInternational.us"), which is what we use to derive country —
-  // there's no separate per-channel "country" field in the raw M3U itself.
+  //
+  // This particular catalog's tvg-id looks like "ChannelName.countrycode@quality"
+  // (e.g. "AndTV.in@International", "red.ru@SD") — the "@quality" suffix has
+  // to be stripped before the trailing ".countrycode" is readable. There's
+  // no group-title or tvg-country attribute anywhere in this file (checked
+  // directly), so: country comes from the id suffix, and since there's no
+  // real category data to show, the quality tag doubles as "category" so
+  // the sidebar has something meaningful instead of one giant "Uncategorized" bucket.
   function parseM3U(text) {
     const lines = text.split(/\r?\n/);
     const result = [];
@@ -78,7 +83,8 @@ const MAX_RENDERED_CHANNELS = 300;
         const name = nameMatch ? nameMatch[1].trim() : attrs["tvg-id"] || "Unknown channel";
 
         const tvgId = attrs["tvg-id"] || "";
-        const idParts = tvgId.split(".");
+        const [idBase, quality] = tvgId.split("@");
+        const idParts = (idBase || "").split(".");
         const lastPart = idParts.length > 1 ? idParts[idParts.length - 1] : "";
         const isCountryCode = /^[a-z]{2}$/i.test(lastPart);
         const countryCode = isCountryCode ? lastPart.toUpperCase() : "";
@@ -87,7 +93,7 @@ const MAX_RENDERED_CHANNELS = 300;
         pending = {
           id: tvgId || name,
           name,
-          group: attrs["group-title"] || "Uncategorized",
+          group: attrs["group-title"] || quality || "Uncategorized",
           logo: attrs["tvg-logo"] || "",
           country,
           country_code: countryCode,
@@ -173,27 +179,44 @@ const MAX_RENDERED_CHANNELS = 300;
     });
   }
 
+  // Current filtered result set + how much of it is rendered so far, so
+  // "Load more" can append without recomputing the filter each click.
+  let currentMatches = [];
+  let renderedCount = 0;
+
   function renderChannels(filterText = "") {
     const query = filterText.trim().toLowerCase();
     channelList.innerHTML = "";
 
-    const matches = channels
+    currentMatches = channels
       .filter((c) => activeCountry === "All" || c.country === activeCountry)
       .filter((c) => activeGroup === "All" || c.group === activeGroup)
       .filter((c) => !query || c.name.toLowerCase().includes(query));
 
-    matches.slice(0, MAX_RENDERED_CHANNELS).forEach((channel) => {
+    renderedCount = 0;
+    appendChannelBatch();
+  }
+
+  function appendChannelBatch() {
+    // Remove any existing "load more" row before appending a fresh batch.
+    const existingMore = channelList.querySelector(".more-note");
+    if (existingMore) existingMore.remove();
+
+    const nextBatch = currentMatches.slice(renderedCount, renderedCount + MAX_RENDERED_CHANNELS);
+    nextBatch.forEach((channel) => {
       const li = document.createElement("li");
       li.textContent = `${flagEmoji(channel.country_code)}  ${channel.name}`;
       li.title = channel.note || "";
       li.addEventListener("click", () => playChannel(channel, li));
       channelList.appendChild(li);
     });
+    renderedCount += nextBatch.length;
 
-    if (matches.length > MAX_RENDERED_CHANNELS) {
+    if (renderedCount < currentMatches.length) {
       const li = document.createElement("li");
       li.className = "more-note";
-      li.textContent = `+${matches.length - MAX_RENDERED_CHANNELS} more — narrow by country, category, or search to see them.`;
+      li.textContent = `Load more (${currentMatches.length - renderedCount} remaining)`;
+      li.addEventListener("click", appendChannelBatch);
       channelList.appendChild(li);
     }
   }
