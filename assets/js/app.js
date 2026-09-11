@@ -216,16 +216,50 @@ const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`
       hls = null;
     }
 
+    // Many links in this catalog are simply offline at any given moment —
+    // that's a property of the data, not this app. Rather than spin
+    // forever, say so plainly after a short timeout or on a hard error.
+    let settled = false;
+    const markOffline = (reason) => {
+      if (settled) return;
+      settled = true;
+      nowPlaying.textContent = `"${channel.name}" looks offline right now (${reason}) — try another channel.`;
+    };
+    const markPlaying = () => {
+      settled = true;
+      nowPlaying.textContent = `Now playing: ${channel.name}`;
+    };
+    const stallTimer = setTimeout(() => markOffline("timed out"), 12000);
+
     if (window.Hls && window.Hls.isSupported()) {
       hls = new window.Hls();
       hls.loadSource(channel.url);
       hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => video.play());
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        clearTimeout(stallTimer);
+        video.play();
+        markPlaying();
+      });
+      hls.on(window.Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          clearTimeout(stallTimer);
+          markOffline(data.details || "stream error");
+        }
+      });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // Native HLS support (Safari/iOS)
       video.src = channel.url;
+      video.addEventListener("loadedmetadata", () => {
+        clearTimeout(stallTimer);
+        markPlaying();
+      }, { once: true });
+      video.addEventListener("error", () => {
+        clearTimeout(stallTimer);
+        markOffline("playback error");
+      }, { once: true });
       video.play();
     } else {
+      clearTimeout(stallTimer);
       nowPlaying.textContent = `Your browser can't play HLS streams directly. Try VLC with: ${channel.url}`;
     }
   }
