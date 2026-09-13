@@ -1,19 +1,29 @@
 /**
  * GusTV front-end — simple version.
- * Fetches the real channel catalog from GitHub Pages, parses it, and shows
- * one flat alphabetical list with search. No countries, no categories, no
- * recording — just pick a channel and watch.
+ * Fetches a channel catalog, parses it, and shows one flat alphabetical
+ * list with search. No countries, no categories, no recording — just pick
+ * a channel and watch.
  *
  * Extras: a Next-channel button, automatic skip-to-next when a channel
  * fails to load, and a loading-progress indicator tied to real HLS load
  * milestones (there's no true byte-progress for a live stream, so this
  * marks concrete stages instead of faking a smooth animation).
+ *
+ * Channel source: US channels that are ALSO tagged English — the
+ * intersection of iptv-org's own pre-built "United States" and "English"
+ * playlists, matched by stream URL (iptv-org's country list alone
+ * includes ~184 non-English US channels, e.g. Spanish-language US
+ * networks like Telemundo/Univision affiliates, so country alone isn't
+ * enough). Both source lists come straight from iptv-org's GitHub Pages
+ * rather than the gusyj/GusTV fork, so there's nothing to sync. Comes out
+ * to roughly 1,293 channels. To use a different country/language
+ * combination, or the full multi-language catalog from the fork instead,
+ * see iptv-org's generated playlists: https://github.com/iptv-org/iptv/blob/master/PLAYLISTS.md
  */
+import "./main.css";
 
-const GITHUB_USER = "gusyj";
-const GITHUB_REPO = "GusTV";
-const GITHUB_BRANCH = "master";
-const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`;
+const US_PLAYLIST_URL = "https://iptv-org.github.io/iptv/countries/us.m3u";
+const ENGLISH_PLAYLIST_URL = "https://iptv-org.github.io/iptv/languages/eng.m3u";
 
 // Auto-skip stops after this many consecutive dead channels, so a fully
 // dead catalog subset can't loop forever.
@@ -73,11 +83,19 @@ const MAX_AUTO_SKIPS = 25;
   async function loadChannels() {
     nowPlaying.textContent = "Loading channel list…";
     try {
-      const res = await fetch(PLAYLIST_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      channels = parseM3U(text);
-      if (!channels.length) throw new Error("Parsed 0 channels");
+      const [usRes, engRes] = await Promise.all([
+        fetch(US_PLAYLIST_URL, { cache: "no-store" }),
+        fetch(ENGLISH_PLAYLIST_URL, { cache: "no-store" }),
+      ]);
+      if (!usRes.ok) throw new Error(`US list HTTP ${usRes.status}`);
+      if (!engRes.ok) throw new Error(`English list HTTP ${engRes.status}`);
+
+      const usChannels = parseM3U(await usRes.text());
+      const englishChannels = parseM3U(await engRes.text());
+      const englishUrls = new Set(englishChannels.map((c) => c.url));
+
+      channels = usChannels.filter((c) => englishUrls.has(c.url));
+      if (!channels.length) throw new Error("Parsed 0 channels after US ∩ English filter");
     } catch (err) {
       console.warn("Falling back to bundled channels.json —", err.message);
       const res = await fetch("channels.json");
@@ -105,6 +123,7 @@ const MAX_AUTO_SKIPS = 25;
     const fragment = document.createDocumentFragment();
     currentList.forEach((channel, index) => {
       const li = document.createElement("li");
+      li.className = "channel-row";
       li.textContent = channel.name;
       li.addEventListener("click", () => playChannelAt(index, { auto: false }));
       fragment.appendChild(li);

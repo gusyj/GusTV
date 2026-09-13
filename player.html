@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <title>GusTV — Direct URL Player</title>
+</head>
+<body>
+  <header class="flex items-center justify-between flex-wrap gap-3 px-4 py-3 border-b border-border">
+    <h1 class="text-xl font-semibold m-0">GusTV</h1>
+    <nav class="flex gap-1.5 flex-none">
+      <a href="index.html" class="nav-link">Channels</a>
+      <a href="player.html" class="nav-link active">Direct URL</a>
+    </nav>
+  </header>
+
+  <main class="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-3 md:gap-4 p-3 md:p-5">
+    <section class="bg-black rounded-xl overflow-hidden flex flex-col border border-border">
+      <video id="player" controls playsinline class="w-full aspect-video bg-black"></video>
+
+      <div id="load-progress" class="h-5 bg-black border-t border-border" hidden>
+        <div
+          id="load-progress-bar"
+          class="h-full w-0 bg-accent text-[#0b1020] text-[0.7rem] leading-5 text-center whitespace-nowrap transition-[width] duration-200 ease-out"
+        ></div>
+      </div>
+
+      <p id="status" class="m-0 px-3.5 py-2.5 text-sm text-muted bg-panel">
+        Paste a stream link below and hit Play.
+      </p>
+    </section>
+
+    <section class="bg-panel border border-border rounded-xl p-4">
+      <h2 class="text-sm uppercase tracking-wide text-muted m-0 mb-2.5">Play a URL directly</h2>
+      <p class="text-muted text-sm leading-relaxed">
+        Works just like VLC's "Open Network Stream" — paste any direct stream link
+        (an <code>.m3u8</code> HLS link, or a single playlist entry's URL) and it
+        plays right here, no channel list needed.
+      </p>
+
+      <form id="url-form" class="flex flex-col gap-2.5 my-3.5">
+        <input
+          id="url-input"
+          type="url"
+          inputmode="url"
+          placeholder="https://example.com/stream/index.m3u8"
+          autocomplete="off"
+          spellcheck="false"
+          required
+          class="rounded-lg border border-border bg-bg text-ink px-3 py-2.5 text-base"
+        />
+        <button
+          id="play-btn"
+          type="submit"
+          class="rounded-lg border border-border bg-accent text-[#0b1020] font-semibold px-4 py-2.5 text-[0.95rem] cursor-pointer hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          Play ▶
+        </button>
+      </form>
+
+      <p class="text-muted text-sm leading-relaxed">
+        If it says a channel is offline, the link itself is down right now (or blocked
+        by the stream host from browsers) — same as it would be in VLC.
+      </p>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
+  <script type="module" src="/src/player.js"></script>
+</body>
+</html>

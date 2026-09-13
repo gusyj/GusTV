@@ -12,10 +12,13 @@
  * needs open internet access to the thousands of individual stream hosts.
  */
 
-const GITHUB_USER = "gusyj";
-const GITHUB_REPO = "GusTV";
-const GITHUB_BRANCH = "master";
-const PLAYLIST_URL = `https://${GITHUB_USER}.github.io/${GITHUB_REPO}/index.m3u`;
+import "./main.css";
+
+// Keep this in sync with src/app.js's source URLs — the checker should
+// validate whatever list the site is actually showing (US channels that
+// are also tagged English).
+const US_PLAYLIST_URL = "https://iptv-org.github.io/iptv/countries/us.m3u";
+const ENGLISH_PLAYLIST_URL = "https://iptv-org.github.io/iptv/languages/eng.m3u";
 
 const CONCURRENCY = 30;
 const TIMEOUT_MS = 6000;
@@ -109,9 +112,14 @@ async function runCheck(channels) {
 startBtn.addEventListener("click", async () => {
   startBtn.disabled = true;
   log("Loading channel list…");
-  const res = await fetch(PLAYLIST_URL, { cache: "no-store" });
-  const text = await res.text();
-  const channels = parseM3U(text);
+  const [usRes, engRes] = await Promise.all([
+    fetch(US_PLAYLIST_URL, { cache: "no-store" }),
+    fetch(ENGLISH_PLAYLIST_URL, { cache: "no-store" }),
+  ]);
+  const usChannels = parseM3U(await usRes.text());
+  const englishChannels = parseM3U(await engRes.text());
+  const englishUrls = new Set(englishChannels.map((c) => c.url));
+  const channels = usChannels.filter((c) => englishUrls.has(c.url));
   log(`Loaded ${channels.length.toLocaleString()} channels. Checking (this takes a while)…\n`);
   await runCheck(channels);
   startBtn.disabled = false;

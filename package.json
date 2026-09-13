@@ -20,7 +20,10 @@
     "report:create": "tsx scripts/commands/report/create.ts",
     "lint": "npx eslint \"scripts/**/*.{ts,js}\" \"tests/**/*.{ts,js}\"",
     "test": "jest --runInBand",
-    "postinstall": "npm run api:load"
+    "postinstall": "npm run api:load",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "jest": {
     "transform": {
@@ -84,5 +87,11 @@
   "overrides": {
     "esbuild": "0.23.1",
     "@xmldom/xmldom": ">=0.8.13 <1.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10",
+    "tailwindcss": "^3.4.14",
+    "postcss": "^8.4.47",
+    "autoprefixer": "^10.4.20"
   }
 }

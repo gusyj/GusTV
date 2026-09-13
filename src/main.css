@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-bg text-ink;
+  }
+}
+
+@layer components {
+  /* Channel list rows and nav links get one shared "active" treatment,
+     applied by JS via classList — kept here since Tailwind's JIT scanner
+     picks up literal utility class names wherever they appear in the
+     project's src JS files (see the content globs in tailwind.config.js),
+     but a named component class is clearer at the call site than a long
+     literal string. */
+  .channel-row {
+    @apply px-3 py-3 rounded-lg cursor-pointer text-sm text-ink/90 hover:bg-accent/10;
+  }
+
+  .channel-row.active {
+    @apply bg-accent text-[#0b1020] hover:bg-accent;
+  }
+
+  .nav-link {
+    @apply px-3 py-2 rounded-lg border border-border bg-panel text-muted text-sm no-underline whitespace-nowrap hover:text-ink hover:bg-[#1f2430];
+  }
+
+  .nav-link.active {
+    @apply text-[#0b1020] bg-accent border-accent;
+  }
+}
